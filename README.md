@@ -5,7 +5,8 @@ A tool for converting GitHub Actions tags to SHA references.
 ## Installation
 
 ```bash
-pip install tag2sha
+# Install directly from GitHub repository
+pip install git+https://github.com/dgwhited/github-actions-tag-2-sha.git
 ```
 
 ## Usage
