@@ -31,7 +31,7 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/yourusername/github-actions-tag-2-sha"
+Repository = "https://github.com/dgwhited/github-actions-tag-2-sha"
 
 [project.scripts]
 tag2sha = "tag2sha.cli:main" 
