@@ -71,7 +71,7 @@ on:
 
     secrets:
       token:
-        description: 'GitHub token with workflow permissions (required for creating PRs)'
+        description: 'GitHub token with workflow permissions (optional - uses GITHUB_TOKEN by default)'
         required: false
 
     outputs:
