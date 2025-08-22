@@ -1,0 +1,93 @@
+name: 'Update GitHub Actions to Latest Releases'
+description: 'Updates GitHub Actions in workflow files to their latest releases using SHA references'
+author: 'Dustin Whited'
+
+branding:
+  icon: 'refresh-ccw'
+  color: 'blue'
+
+inputs:
+  files:
+    description: 'Workflow files to process (e.g., ".github/workflows/*.yml")'
+    required: false
+    default: '.github/workflows/*.yml'
+  
+  mode:
+    description: 'Update mode: "convert-to-sha" (convert tags to SHA) or "update-to-latest" (update all to latest releases)'
+    required: false
+    default: 'update-to-latest'
+  
+  token:
+    description: 'GitHub token for API authentication'
+    required: false
+    default: ${{ github.token }}
+  
+  dry-run:
+    description: 'Print changes without modifying files'
+    required: false
+    default: 'false'
+
+outputs:
+  changes-made:
+    description: 'Number of changes made to workflow files'
+    value: ${{ steps.update.outputs.changes }}
+  
+  files-modified:
+    description: 'List of files that were modified'
+    value: ${{ steps.update.outputs.files }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+    
+    - name: Install tag2sha
+      shell: bash
+      run: |
+        pip install git+https://github.com/dgwhited/github-actions-tag-2-sha.git
+    
+    - name: Update GitHub Actions
+      id: update
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        # Set up arguments based on inputs
+        args=""
+        
+        # Add mode-specific flags
+        if [[ "${{ inputs.mode }}" == "update-to-latest" ]]; then
+          args="$args --update-to-latest"
+        elif [[ "${{ inputs.mode }}" == "convert-main-to-release" ]]; then
+          args="$args --convert-main-to-release"
+        fi
+        
+        # Add dry-run if specified
+        if [[ "${{ inputs.dry-run }}" == "true" ]]; then
+          args="$args --dry-run"
+        fi
+        
+        # Skip git operations (let caller handle git/PR creation)
+        args="$args --no-git"
+        
+        # Store output for parsing
+        echo "Running: tag2sha $args ${{ inputs.files }}"
+        output=$(tag2sha $args ${{ inputs.files }} 2>&1)
+        echo "$output"
+        
+        # Extract changes count from summary line
+        changes=$(echo "$output" | grep "Summary:" | sed -n 's/.*Made \([0-9]*\) changes.*/\1/p')
+        if [[ -z "$changes" ]]; then
+          changes=0
+        fi
+        
+        # Extract modified files (this is a simplified approach)
+        files=$(echo "$output" | grep "Processing\|Made.*changes to" | grep -v "Would make" | sed -n 's/.*\(\.github\/workflows\/[^\.]*\.yml\?\).*/\1/p' | tr '\n' ',' | sed 's/,$//')
+        
+        echo "changes=$changes" >> $GITHUB_OUTPUT
+        echo "files=$files" >> $GITHUB_OUTPUT
+        echo "Changes made: $changes"
+        echo "Files modified: $files"
