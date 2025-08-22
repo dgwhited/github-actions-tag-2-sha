@@ -55,7 +55,7 @@ jobs:
       pr-labels: 'dependencies, automated-pr, github-actions, weekly-update'
       branch-name: 'weekly-actions-update'
       commit-message: '🤖 Weekly update of GitHub Actions to latest releases'
-    secrets:
-      # Pass through the GitHub token
-      # For organization repos, you might want to use a PAT with broader permissions
-      token: ${{ secrets.GITHUB_TOKEN }}
+    # secrets:
+      # Optional: Pass a custom token for advanced use cases
+      # By default, uses the built-in GITHUB_TOKEN automatically
+      # token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
