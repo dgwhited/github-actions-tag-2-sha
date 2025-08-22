@@ -178,6 +178,50 @@ When using the default `GITHUB_TOKEN`, pull requests created by this action **wi
 
 **If you need other workflows to trigger**, use a Personal Access Token instead of the default token.
 
+## 🚨 Troubleshooting
+
+### Permission Denied Error (403)
+If you get an error like `Permission to <repo>.git denied to github-actions[bot]`, follow these steps:
+
+#### 1. Check Repository Settings (Most Common Fix)
+1. Go to **Settings → Actions → General → Workflow permissions**
+2. Select **"Read and write permissions"**
+3. Check ✅ **"Allow GitHub Actions to create and approve pull requests"**
+4. Click **Save**
+
+#### 2. Organization Settings (If Repository Setting is Grayed Out)
+For organization repositories, admins must enable these settings:
+1. Go to **Organization Settings → Actions → General**
+2. Enable **"Allow GitHub Actions to create and approve pull requests"**
+3. Then return to repository settings and enable the same option
+
+#### 3. Repository Created After February 2, 2023
+If your repository was created after February 2, 2023, the default GITHUB_TOKEN permissions are read-only. The workflow includes the necessary permissions, but repository settings must be enabled as described above.
+
+#### 4. Still Getting Errors?
+If you continue getting permission errors after enabling repository settings:
+
+**Use a Personal Access Token:**
+1. Create a PAT with `repo` scope
+2. Add as repository secret: `GITHUB_TOKEN_PAT`
+3. Use in workflow:
+   ```yaml
+   secrets:
+     token: ${{ secrets.GITHUB_TOKEN_PAT }}
+   ```
+
+### No Changes Detected
+If the action runs but reports "No changes detected":
+- Your GitHub Actions are already at their latest releases
+- Run with `dry-run: true` to see what would be updated
+- Check if the action patterns match your workflow file paths
+
+### Actions Not Found
+If you get "No release found for repo" warnings:
+- The action repository might not have releases (only tags)
+- Some actions use different release strategies
+- The action might be deprecated or moved
+
 ## Features
 
 - Converts GitHub Actions tag references to commit SHA references
