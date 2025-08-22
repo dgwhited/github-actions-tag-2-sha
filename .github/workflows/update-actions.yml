@@ -100,6 +100,30 @@ jobs:
       pull-requests: write
     
     steps:
+      - name: Check token permissions for workflow files
+        if: ${{ contains(inputs.files, '.github/workflows/') && !secrets.token }}
+        run: |
+          echo "::error::❌ Cannot update workflow files with default GITHUB_TOKEN"
+          echo ""
+          echo "⚠️  GitHub security prevents updating .github/workflows/ files without proper permissions."
+          echo ""
+          echo "🔧 TO FIX THIS:"
+          echo "1. Create a Personal Access Token:"
+          echo "   → Go to: https://github.com/settings/tokens/new"
+          echo "   → Name: 'GitHub Actions Updater'"
+          echo "   → Scope: ✅ repo (includes workflow permissions)"
+          echo ""
+          echo "2. Add token to repository secrets:"
+          echo "   → Settings → Secrets and variables → Actions"
+          echo "   → New repository secret: WORKFLOW_TOKEN"
+          echo ""
+          echo "3. Update your workflow:"
+          echo "   secrets:"
+          echo "     token: \${{ secrets.WORKFLOW_TOKEN }}"
+          echo ""
+          echo "📖 See README for complete setup guide"
+          exit 1
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:

@@ -40,6 +40,43 @@ tag2sha --no-git .github/workflows/*.yml
 
 This tool is also available as a GitHub Action for automated dependency updates across your organization.
 
+## ⚠️ Important: Updating Workflow Files Requires PAT
+
+**To update `.github/workflows/*.yml` files, you MUST use a Personal Access Token** due to GitHub security restrictions. The default `GITHUB_TOKEN` cannot modify workflow files.
+
+### Quick Start for Workflow Updates
+
+#### 1. Create Personal Access Token
+1. Go to https://github.com/settings/tokens/new
+2. Give it a name: "GitHub Actions Updater"
+3. Select scope: ✅ **`repo`** (includes workflow permissions)
+4. Click **Generate token** and copy it
+
+#### 2. Add Token to Repository
+1. Go to your repository **Settings → Secrets and variables → Actions**
+2. Click **New repository secret**
+3. Name: `WORKFLOW_TOKEN`
+4. Value: Paste your PAT
+5. Click **Add secret**
+
+#### 3. Use in Your Workflow
+```yaml
+name: Weekly GitHub Actions Update
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Every Monday at 10 AM
+
+jobs:
+  update:
+    uses: dgwhited/github-actions-tag-2-sha/.github/workflows/update-actions.yml@main
+    with:
+      files: '.github/workflows/*.yml'
+    secrets:
+      token: ${{ secrets.WORKFLOW_TOKEN }}  # Required for workflow files!
+```
+
+✅ **Ready to go!** Your workflows will now be updated automatically every week.
+
 ## 🔧 Setup Requirements
 
 ### Repository Configuration (Required)
@@ -52,27 +89,23 @@ Before using this action, you must enable PR creation in your repository:
 
 ### Token Options
 
-#### Option 1: Default GITHUB_TOKEN (Recommended)
-**Pros:**
+#### Option 1: Personal Access Token (For Workflow Files)
+**Required for updating `.github/workflows/*.yml` files:**
+- ✅ Create PAT with `repo` scope (includes workflow permissions)
+- ✅ Add as repository secret: `WORKFLOW_TOKEN` 
+- ✅ Can trigger other workflows when PRs are created
+
+**Setup:** See "Quick Start for Workflow Updates" section above
+
+#### Option 2: Default GITHUB_TOKEN (Limited Use)
+**Only works for non-workflow files (action.yml, docker-compose.yml, etc.):**
 - ✅ No additional setup required
 - ✅ No secrets to manage  
 - ✅ Works out of the box
-- ✅ Secure by default
 
-**Limitations:**
-- ⚠️ Pull requests created won't trigger other workflows (GitHub security feature)
-- ⚠️ Won't run `on: pull_request` or `on: push` workflow checks
-
-#### Option 2: Personal Access Token (Advanced)
-**When to use:**
-- ✅ Need PRs to trigger other workflows
-- ✅ Need `on: pull_request` checks to run
-- ✅ Integration with external workflow dependencies
-
-**Setup:**
-1. Create a Personal Access Token with `repo` scope
-2. Add as repository secret (e.g., `GITHUB_TOKEN_PAT`)
-3. Reference in workflow: `token: ${{ secrets.GITHUB_TOKEN_PAT }}`
+**Major Limitations:**
+- ❌ **Cannot update `.github/workflows/*.yml` files** (will fail)
+- ⚠️ Pull requests created won't trigger other workflows
 
 #### 1. Using the Composite Action
 
@@ -93,7 +126,7 @@ jobs:
         with:
           files: '.github/workflows/*.yml'
           mode: 'update-to-latest'
-          # token: ${{ github.token }} # Optional - uses default GITHUB_TOKEN
+          token: ${{ secrets.WORKFLOW_TOKEN }}  # Required for workflow files!
       
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
@@ -101,6 +134,7 @@ jobs:
           title: 'Update GitHub Actions to latest releases'
           body: 'Automated update of GitHub Actions dependencies'
           branch: 'update-actions'
+          token: ${{ secrets.WORKFLOW_TOKEN }}
 ```
 
 #### 2. Using the Reusable Workflow (Recommended for Organizations)
@@ -122,8 +156,8 @@ jobs:
       create-pr: true
       pr-title: '🤖 Weekly GitHub Actions Update'
       pr-labels: 'dependencies, automated-pr'
-    # secrets:
-    #   token: ${{ secrets.CUSTOM_TOKEN }} # Optional - only needed for advanced use cases
+    secrets:
+      token: ${{ secrets.WORKFLOW_TOKEN }}  # Required for workflow files!
 ```
 
 #### 3. Organization-Wide Setup
@@ -149,8 +183,8 @@ jobs:
     with:
       mode: 'update-to-latest'
       create-pr: true
-    # secrets:
-    #   token: ${{ secrets.ORG_GITHUB_TOKEN }}  # Optional: PAT with org permissions for advanced use cases
+    secrets:
+      token: ${{ secrets.ORG_WORKFLOW_TOKEN }}  # Required: PAT with workflow permissions
 ```
 
 ### Action Inputs
@@ -179,6 +213,13 @@ When using the default `GITHUB_TOKEN`, pull requests created by this action **wi
 **If you need other workflows to trigger**, use a Personal Access Token instead of the default token.
 
 ## 🚨 Troubleshooting
+
+### Workflow Permission Error (Most Common)
+**Error**: `refusing to allow a GitHub App to create or update workflow '.github/workflows/xxx.yml' without workflows permission`
+
+**Cause**: You're trying to update workflow files with the default `GITHUB_TOKEN`, which lacks workflow permissions.
+
+**Solution**: Use a Personal Access Token (see "Quick Start for Workflow Updates" above)
 
 ### Permission Denied Error (403)
 If you get an error like `Permission to <repo>.git denied to github-actions[bot]`, follow these steps:

@@ -156,6 +156,19 @@ def get_latest_matching_tag(repo: str, version_pattern: str, token: str = None) 
         matching_tags.sort(reverse=True)
         return matching_tags[0]
 
+def is_workflow_file(file_path: str) -> bool:
+    """
+    Check if a file path is a GitHub workflow file.
+    
+    Args:
+        file_path: Path to check
+    
+    Returns:
+        True if the file is in .github/workflows/ directory
+    """
+    normalized_path = file_path.replace('\\', '/')
+    return '.github/workflows/' in normalized_path or normalized_path.startswith('.github/workflows/')
+
 def parse_action_repo(action: str) -> Tuple[str, str]:
     """
     Parse an action reference to separate repository and variant components.
@@ -242,6 +255,15 @@ def process_workflow_file(file_path: str, token: str, dry_run: bool = False, con
     Process a workflow file, replacing tags with SHAs.
     Returns a tuple of (changes_made, errors).
     """
+    # Check if this is a workflow file and warn about token requirements
+    if is_workflow_file(file_path):
+        is_default_token = token == os.environ.get('GITHUB_TOKEN')
+        if is_default_token and not dry_run:
+            print(f"⚠️  WARNING: Updating workflow file {file_path}")
+            print("   This may fail if using default GITHUB_TOKEN (missing 'workflows' permission)")
+            print("   Consider using a Personal Access Token with 'repo' scope for workflow files")
+            print()
+    
     with open(file_path, 'r') as f:
         content = f.read()
     
