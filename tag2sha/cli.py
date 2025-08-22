@@ -156,6 +156,27 @@ def get_latest_matching_tag(repo: str, version_pattern: str, token: str = None) 
         matching_tags.sort(reverse=True)
         return matching_tags[0]
 
+def parse_action_repo(action: str) -> Tuple[str, str]:
+    """
+    Parse an action reference to separate repository and variant components.
+    
+    Args:
+        action: Full action reference like 'github/super-linter/slim' or 'actions/checkout'
+    
+    Returns:
+        Tuple of (base_repo, full_action) where:
+        - base_repo: Repository for API calls (e.g., 'github/super-linter')
+        - full_action: Full action path for workflow references (e.g., 'github/super-linter/slim')
+    """
+    parts = action.split('/')
+    if len(parts) > 2:
+        # Has variant like /slim - use only owner/repo for API calls
+        base_repo = f"{parts[0]}/{parts[1]}"
+        return base_repo, action
+    else:
+        # Standard owner/repo format
+        return action, action
+
 def get_commit_sha(repo: str, tag: str, token: str = None, convert_main_to_release: bool = False) -> Tuple[str, str]:
     """
     Get the commit SHA for a given tag/ref in a repository.
@@ -225,30 +246,33 @@ def process_workflow_file(file_path: str, token: str, dry_run: bool = False, con
         content = f.read()
     
     # Regular expression to match GitHub action references
-    # Matches patterns like: uses: owner/repo@tag or uses: owner/repo@sha  # tag
-    action_pattern = re.compile(r'(\s+uses:\s+)([^/\s]+/[^@\s]+)@([^#\s]+)(\s*(?:#\s*(.*))?)?$', re.MULTILINE)
+    # Matches patterns like: uses: owner/repo@tag or uses: owner/repo/variant@sha  # tag
+    action_pattern = re.compile(r'(\s+uses:\s+)([^@\s]+)@([^#\s]+)(\s*(?:#\s*(.*))?)?$', re.MULTILINE)
     
     changes_made = 0
     errors = 0
     new_content = content
     
     for match in action_pattern.finditer(content):
-        prefix, repo, version, comment_part, comment_text = match.groups()
+        prefix, full_action, version, comment_part, comment_text = match.groups()
+        
+        # Parse the action to separate base repository from variant
+        base_repo, full_action = parse_action_repo(full_action)
         
         # Determine the current version and whether it's a SHA
         is_sha = re.match(r'^[0-9a-f]{40}$', version)
         current_version = version
         
         if update_to_latest:
-            # When updating to latest, always get the latest release
-            latest_release = get_latest_release(repo, token)
+            # When updating to latest, always get the latest release (using base repo for API)
+            latest_release = get_latest_release(base_repo, token)
             if not latest_release:
-                print(f"Warning: No release found for {repo}, skipping")
+                print(f"Warning: No release found for {base_repo}, skipping")
                 errors += 1
                 continue
             
-            # Get SHA for latest release
-            sha, resolved_ref = get_commit_sha(repo, latest_release, token, False)
+            # Get SHA for latest release (using base repo for API)
+            sha, resolved_ref = get_commit_sha(base_repo, latest_release, token, False)
             if not sha:
                 errors += 1
                 continue
@@ -261,28 +285,28 @@ def process_workflow_file(file_path: str, token: str, dry_run: bool = False, con
                 # Already at latest release
                 continue
             
-            print(f"Action: {repo}@{version} → {repo}@{sha}  # {latest_release}")
-            new_line = f"{prefix}{repo}@{sha}  # {latest_release}"
+            print(f"Action: {full_action}@{version} → {full_action}@{sha}  # {latest_release}")
+            new_line = f"{prefix}{full_action}@{sha}  # {latest_release}"
             
         else:
             # Original behavior: skip SHA references unless converting main to release
             if is_sha:
                 continue
             
-            # Get the SHA for this tag
-            sha, resolved_ref = get_commit_sha(repo, version, token, convert_main_to_release)
+            # Get the SHA for this tag (using base repo for API)
+            sha, resolved_ref = get_commit_sha(base_repo, version, token, convert_main_to_release)
             if not sha:
                 errors += 1
                 continue
             
             # Debug output
-            print(f"Action: {repo}@{version} → SHA with tag: {resolved_ref}")
+            print(f"Action: {full_action}@{version} → SHA with tag: {resolved_ref}")
             
             # Create the replacement with simplified comment format - always use resolved_ref
             if comment_part and comment_part.strip():
-                new_line = f"{prefix}{repo}@{sha}{comment_part}"
+                new_line = f"{prefix}{full_action}@{sha}{comment_part}"
             else:
-                new_line = f"{prefix}{repo}@{sha}  # {resolved_ref}"
+                new_line = f"{prefix}{full_action}@{sha}  # {resolved_ref}"
         
         # Replace this specific occurrence
         new_content = new_content.replace(match.group(0), new_line)

@@ -1,0 +1,37 @@
+name: Test GitHub Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Run in dry-run mode'
+        type: boolean
+        default: true
+
+jobs:
+  test-composite-action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Test Update Action
+        uses: ./
+        with:
+          files: '.github/workflows/example-caller.yml'
+          mode: 'update-to-latest'
+          dry-run: ${{ inputs.dry-run }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Show git status
+        run: git status
+  
+  test-reusable-workflow:
+    uses: ./.github/workflows/update-actions.yml
+    with:
+      files: '.github/workflows/example-caller.yml'
+      mode: 'update-to-latest'
+      dry-run: true
+      create-pr: false
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
