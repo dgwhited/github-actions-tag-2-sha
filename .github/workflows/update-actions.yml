@@ -87,9 +87,6 @@ on:
         description: 'Pull request URL (if created)'
         value: ${{ jobs.update-actions.outputs.pull-request-url }}
 
-permissions:
-  contents: read
-
 jobs:
   update-actions:
     runs-on: ubuntu-latest
